@@ -1,7 +1,10 @@
 
 import { RouteEntry } from '@arikajs/router';
+import { DocDriver } from './Drivers/DocDriver';
 
-export class OpenApiGenerator {
+export class OpenApiGenerator implements DocDriver {
+    public getExtension(): string { return 'json'; }
+    public getFilename(): string { return 'openapi.json'; }
     public generate(routes: RouteEntry[], appName: string): any {
         return {
             openapi: "3.0.0",

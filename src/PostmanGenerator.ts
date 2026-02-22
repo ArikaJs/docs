@@ -1,7 +1,10 @@
 
 import { RouteEntry } from '@arikajs/router';
+import { DocDriver } from './Drivers/DocDriver';
 
-export class PostmanGenerator {
+export class PostmanGenerator implements DocDriver {
+    public getExtension(): string { return 'json'; }
+    public getFilename(): string { return 'postman_collection.json'; }
     public generate(routes: RouteEntry[], appName: string): any {
         return {
             info: {

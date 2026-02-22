@@ -10,28 +10,35 @@ The goal of this package is to eliminate the manual work of keeping documentatio
 
 ### Status
 
-- **Stage**: Experimental / v0.x
-- **Scope (v0.x)**:
+- **Stage**: Beta / v0.x
+- **Extensibility**: Driver-based architecture (add your own documentation formats)
+- **Features**:
   - Route metadata extraction from `@arikajs/router`
   - Postman Collection (v2.1.0) generation
   - Arika-themed interactive HTML documentation
   - Markdown (DOCS.md) generation
   - OpenAPI 3.0 specification generation
+  - **New**: Route filtering by prefix (e.g., generate docs only for `api/v1`)
 
 ---
 
 ## Features
 
-- **Multi-Format Generation**
+- **🚀 Extensible architecture**
+  - Uses a **Driver Pattern** for all documentation formats.
+  - Easily add new drivers by implementing the `DocDriver` interface.
+
+- **🎨 Multi-Format Generation**
   - **HTML**: A premium, interactive web page for your API.
   - **Postman**: Ready-to-import JSON collection with pre-configured headers.
   - **OpenAPI**: Industry-standard Swagger/OpenAPI 3.0 specification.
   - **Markdown**: Clean, readable `DOCS.md` for GitHub or local documentation.
 
-- **Route Analysis**
+- **🔍 Intelligent Route Analysis**
+  - **Prefix Filtering**: Only document specific sections of your app.
   - Automatically groups endpoints by prefix (e.g., `api`, `admin`).
   - Captures route names, methods, and full path hierarchies.
-  - Displays middleware information for each endpoint.
+  - Displays middleware and parameter information.
 
 - **Environment Support**
   - Automatically generates Postman environment JSON with your `base_url`.

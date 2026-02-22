@@ -6,32 +6,55 @@ import { HtmlGenerator } from './HtmlGenerator';
 import { OpenApiGenerator } from './OpenApiGenerator';
 import fs from 'fs';
 import path from 'path';
+import { DocDriver } from './Drivers/DocDriver';
 
 export class DocumentationGenerator {
-    protected postman: PostmanGenerator;
-    protected markdown: MarkdownGenerator;
-    protected html: HtmlGenerator;
-    protected openApi: OpenApiGenerator;
+    protected drivers: DocDriver[] = [];
 
     constructor() {
-        this.postman = new PostmanGenerator();
-        this.markdown = new MarkdownGenerator();
-        this.html = new HtmlGenerator();
-        this.openApi = new OpenApiGenerator();
+        this.drivers = [
+            new PostmanGenerator(),
+            new MarkdownGenerator(),
+            new HtmlGenerator(),
+            new OpenApiGenerator()
+        ];
     }
 
-    public generateAll(appName: string, outputDir: string): void {
-        const routes = RouteRegistry.getInstance().getRoutes();
+    /**
+     * Generate all documentation formats.
+     */
+    public generateAll(appName: string, outputDir: string, options: { filterPrefix?: string } = {}): void {
+        let routes = RouteRegistry.getInstance().getRoutes();
+
+        // Filter routes if prefix filter is provided
+        if (options.filterPrefix) {
+            routes = routes.filter(route =>
+                route.path.startsWith(options.filterPrefix!) ||
+                (route.prefix && route.prefix.startsWith(options.filterPrefix!))
+            );
+        }
 
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
 
-        // Postman
-        const postmanJson = this.postman.generate(routes, appName);
-        fs.writeFileSync(path.join(outputDir, 'postman_collection.json'), JSON.stringify(postmanJson, null, 2));
+        for (const driver of this.drivers) {
+            const content = driver.generate(routes, appName);
+            const filename = driver.getFilename(appName);
+            const outputPath = path.join(outputDir, filename);
 
-        // Environment
+            const outputContent = typeof content === 'string'
+                ? content
+                : JSON.stringify(content, null, 2);
+
+            fs.writeFileSync(outputPath, outputContent);
+        }
+
+        // Always generate Postman Environment if Postman driver is present
+        this.generateEnvironment(appName, outputDir);
+    }
+
+    protected generateEnvironment(appName: string, outputDir: string): void {
         const envJson = {
             name: `${appName} Env`,
             values: [
@@ -39,17 +62,10 @@ export class DocumentationGenerator {
             ]
         };
         fs.writeFileSync(path.join(outputDir, 'postman_environment.json'), JSON.stringify(envJson, null, 2));
+    }
 
-        // Markdown
-        const md = this.markdown.generate(routes, appName);
-        fs.writeFileSync(path.join(outputDir, 'DOCS.md'), md);
-
-        // HTML
-        const html = this.html.generate(routes, appName);
-        fs.writeFileSync(path.join(outputDir, 'api_docs.html'), html);
-
-        // OpenAPI
-        const openApiJson = this.openApi.generate(routes, appName);
-        fs.writeFileSync(path.join(outputDir, 'openapi.json'), JSON.stringify(openApiJson, null, 2));
+    public addDriver(driver: DocDriver): this {
+        this.drivers.push(driver);
+        return this;
     }
 }

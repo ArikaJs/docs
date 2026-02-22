@@ -1,7 +1,10 @@
 
 import { RouteEntry } from '@arikajs/router';
+import { DocDriver } from './Drivers/DocDriver';
 
-export class HtmlGenerator {
+export class HtmlGenerator implements DocDriver {
+    public getExtension(): string { return 'html'; }
+    public getFilename(): string { return 'api_docs.html'; }
     public generate(routes: RouteEntry[], appName: string): string {
         const groups = this.groupByPrefix(routes);
         const groupHtml = Object.entries(groups).map(([name, groupRoutes]) => this.renderGroup(name, groupRoutes)).join('');

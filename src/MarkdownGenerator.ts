@@ -1,7 +1,10 @@
 
 import { RouteEntry } from '@arikajs/router';
+import { DocDriver } from './Drivers/DocDriver';
 
-export class MarkdownGenerator {
+export class MarkdownGenerator implements DocDriver {
+    public getExtension(): string { return 'md'; }
+    public getFilename(): string { return 'DOCS.md'; }
     public generate(routes: RouteEntry[], appName: string): string {
         let markdown = `# API Documentation: ${appName}\n\n`;
         markdown += `Generated on ${new Date().toLocaleDateString()}\n\n`;
