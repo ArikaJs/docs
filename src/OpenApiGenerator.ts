@@ -1,72 +1,73 @@
+import { ParsedRoute } from './types';
 
-import { RouteEntry } from '@arikajs/router';
-import { DocDriver } from './Drivers/DocDriver';
+export class OpenApiGenerator {
+    public generate(routes: ParsedRoute[], appName: string, baseUrl: string): any {
+        const paths: Record<string, any> = {};
 
-export class OpenApiGenerator implements DocDriver {
-    public getExtension(): string { return 'json'; }
-    public getFilename(): string { return 'openapi.json'; }
-    public generate(routes: RouteEntry[], appName: string): any {
+        routes.forEach(route => {
+            const rawPath = route.path.replace(/^\/+/, '');
+            const openApiPath = '/' + rawPath.replace(/:([a-zA-Z0-9_]+)|\{([a-zA-Z0-9_]+)\}/g, '{$1$2}');
+
+            if (!paths[openApiPath]) paths[openApiPath] = {};
+
+            const method = route.method.toLowerCase();
+            const group = route.prefix ? route.prefix.replace(/^\/+/, '').split('/').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' / ') : 'General';
+            const routeName = route.name || `${method}_${rawPath.replace(/\//g, '_')}`;
+
+            const parameters = route.paramKeys.map(key => ({
+                name: key,
+                in: 'path',
+                required: true,
+                schema: { type: 'string' }
+            }));
+
+            const operation: any = {
+                summary: routeName,
+                tags: [group || 'General'],
+                parameters: parameters.length > 0 ? parameters : undefined,
+                responses: {
+                    '200': { description: 'Successful response' },
+                    '401': route.middleware.includes('auth') ? { description: 'Unauthorized' } : undefined,
+                }
+            };
+
+            if (route.middleware.includes('auth')) {
+                operation.security = [{ bearerAuth: [] }];
+            }
+
+            if (['post', 'put', 'patch'].includes(method)) {
+                operation.requestBody = {
+                    content: {
+                        'application/json': {
+                            schema: { type: 'object', properties: {} }
+                        }
+                    }
+                };
+            }
+
+            paths[openApiPath][method] = operation;
+        });
+
+        const servers = [{ url: baseUrl }];
+
         return {
-            openapi: "3.0.0",
+            openapi: '3.0.0',
             info: {
                 title: appName,
-                description: `API Specification for ${appName}`,
-                version: "1.0.0"
+                version: '1.0.0',
+                description: `API documentation for ${appName}`
             },
-            paths: this.formatPaths(routes),
+            servers,
+            paths,
             components: {
-                schemas: {},
                 securitySchemes: {
                     bearerAuth: {
-                        type: "http",
-                        scheme: "bearer",
-                        bearerFormat: "JWT"
+                        type: 'http',
+                        scheme: 'bearer',
+                        bearerFormat: 'JWT'
                     }
                 }
             }
         };
-    }
-
-    private formatPaths(routes: RouteEntry[]): any {
-        const paths: any = {};
-
-        routes.forEach(route => {
-            const path = route.path.replace(/:([a-zA-Z0-9_]+)|\{([a-zA-Z0-9_]+)\}/g, '{$1$2}');
-
-            if (!paths[path]) {
-                paths[path] = {};
-            }
-
-            paths[path][route.method.toLowerCase()] = {
-                summary: route.name || `Endpoint for ${path}`,
-                tags: [route.prefix || 'General'],
-                parameters: this.extractParameters(route),
-                responses: {
-                    "200": {
-                        description: "Successful response",
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object"
-                                }
-                            }
-                        }
-                    }
-                }
-            };
-        });
-
-        return paths;
-    }
-
-    private extractParameters(route: RouteEntry): any[] {
-        return route.paramKeys.map(key => ({
-            name: key,
-            in: "path",
-            required: true,
-            schema: {
-                type: "string"
-            }
-        }));
     }
 }

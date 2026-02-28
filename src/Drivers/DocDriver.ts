@@ -1,8 +1,7 @@
-
-import { RouteEntry } from '@arikajs/router';
+import { ParsedRoute } from '../types';
 
 export interface DocDriver {
-    generate(routes: RouteEntry[], appName: string): any;
+    generate(routes: ParsedRoute[], appName: string, baseUrl?: string): any;
     getExtension(): string;
     getFilename(appName: string): string;
 }

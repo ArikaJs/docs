@@ -1,24 +1,23 @@
+import { ParsedRoute } from './types';
 
-import { RouteEntry } from '@arikajs/router';
-import { DocDriver } from './Drivers/DocDriver';
-
-export class MarkdownGenerator implements DocDriver {
-    public getExtension(): string { return 'md'; }
-    public getFilename(): string { return 'DOCS.md'; }
-    public generate(routes: RouteEntry[], appName: string): string {
+export class MarkdownGenerator {
+    public generate(routes: ParsedRoute[], appName: string, baseUrl?: string): string {
         let markdown = `# API Documentation: ${appName}\n\n`;
         markdown += `Generated on ${new Date().toLocaleDateString()}\n\n`;
+        markdown += `> **Total Routes:** ${routes.length}\n\n`;
 
         const groups = this.groupByPrefix(routes);
 
         for (const [group, groupRoutes] of Object.entries(groups)) {
             markdown += `## ${group}\n\n`;
-            markdown += `| Method | Path | Name | Middleware |\n`;
-            markdown += `| :--- | :--- | :--- | :--- |\n`;
+            markdown += `| Method | Path | Handler | Name | Middleware |\n`;
+            markdown += `| :--- | :--- | :--- | :--- | :--- |\n`;
 
             groupRoutes.forEach(route => {
-                const middleware = route.middleware.map(m => typeof m === 'string' ? m : m.name || 'Closure').join(', ') || '-';
-                markdown += `| **${route.method}** | \`${route.path}\` | ${route.name || '-'} | ${middleware} |\n`;
+                const middleware = route.middleware.length > 0 ? route.middleware.join(', ') : '-';
+                const handler = route.handler || '-';
+                const name = route.name || '-';
+                markdown += `| **${route.method}** | \`${route.path}\` | ${handler} | ${name} | ${middleware} |\n`;
             });
 
             markdown += `\n`;
@@ -27,12 +26,13 @@ export class MarkdownGenerator implements DocDriver {
         return markdown;
     }
 
-    private groupByPrefix(routes: RouteEntry[]): Record<string, RouteEntry[]> {
-        const groups: Record<string, RouteEntry[]> = {};
-        routes.forEach(route => {
-            const group = route.prefix || 'General';
+    private groupByPrefix(routes: ParsedRoute[]): Record<string, ParsedRoute[]> {
+        const groups: Record<string, ParsedRoute[]> = {};
+        routes.forEach(r => {
+            let group = r.prefix ? r.prefix.replace(/^\/+/, '').split('/').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' / ') : 'General';
+            if (!group) group = 'General';
             if (!groups[group]) groups[group] = [];
-            groups[group].push(route);
+            groups[group].push(r);
         });
         return groups;
     }

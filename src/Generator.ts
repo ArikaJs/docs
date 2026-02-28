@@ -1,71 +1,57 @@
-
-import { RouteRegistry } from '@arikajs/router';
+import { ParsedRoute } from './types';
 import { PostmanGenerator } from './PostmanGenerator';
 import { MarkdownGenerator } from './MarkdownGenerator';
 import { HtmlGenerator } from './HtmlGenerator';
 import { OpenApiGenerator } from './OpenApiGenerator';
 import fs from 'fs';
 import path from 'path';
-import { DocDriver } from './Drivers/DocDriver';
 
 export class DocumentationGenerator {
-    protected drivers: DocDriver[] = [];
-
-    constructor() {
-        this.drivers = [
-            new PostmanGenerator(),
-            new MarkdownGenerator(),
-            new HtmlGenerator(),
-            new OpenApiGenerator()
-        ];
-    }
-
     /**
-     * Generate all documentation formats.
+     * Generate all documentation formats based on parsed routes.
      */
-    public generateAll(appName: string, outputDir: string, options: { filterPrefix?: string } = {}): void {
-        let routes = RouteRegistry.getInstance().getRoutes();
-
-        // Filter routes if prefix filter is provided
-        if (options.filterPrefix) {
-            routes = routes.filter(route =>
-                route.path.startsWith(options.filterPrefix!) ||
-                (route.prefix && route.prefix.startsWith(options.filterPrefix!))
-            );
-        }
+    public generateAll(routes: ParsedRoute[], appName: string, outputDir: string, options: { baseUrl?: string } = {}): void {
+        const baseUrl = options.baseUrl || 'http://localhost:3000';
 
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
 
-        for (const driver of this.drivers) {
-            const content = driver.generate(routes, appName);
-            const filename = driver.getFilename(appName);
-            const outputPath = path.join(outputDir, filename);
-
-            const outputContent = typeof content === 'string'
-                ? content
-                : JSON.stringify(content, null, 2);
-
-            fs.writeFileSync(outputPath, outputContent);
-        }
-
-        // Always generate Postman Environment if Postman driver is present
-        this.generateEnvironment(appName, outputDir);
-    }
-
-    protected generateEnvironment(appName: string, outputDir: string): void {
+        // Generate Postman Environment
         const envJson = {
             name: `${appName} Env`,
             values: [
-                { key: "base_url", value: "http://localhost:3000", enabled: true }
+                { key: "base_url", value: baseUrl, enabled: true },
+                { key: "token", value: "", enabled: true }
             ]
         };
-        fs.writeFileSync(path.join(outputDir, 'postman_environment.json'), JSON.stringify(envJson, null, 2));
-    }
+        const envContent = JSON.stringify(envJson, null, 2);
+        fs.writeFileSync(path.join(outputDir, 'postman_environment.json'), envContent);
 
-    public addDriver(driver: DocDriver): this {
-        this.drivers.push(driver);
-        return this;
+        // Generate Postman Collection
+        const postmanGenerator = new PostmanGenerator();
+        const postmanJson = postmanGenerator.generate(routes, appName, baseUrl);
+        const postmanContent = JSON.stringify(postmanJson, null, 2);
+        fs.writeFileSync(path.join(outputDir, 'postman_collection.json'), postmanContent);
+
+        // Generate OpenAPI Spec
+        const openApiGenerator = new OpenApiGenerator();
+        const openApiJson = openApiGenerator.generate(routes, appName, baseUrl);
+        const openApiContent = JSON.stringify(openApiJson, null, 2);
+        fs.writeFileSync(path.join(outputDir, 'openapi.json'), openApiContent);
+
+        // Generate Markdown
+        const markdownGenerator = new MarkdownGenerator();
+        const markdownContent = markdownGenerator.generate(routes, appName, baseUrl);
+        fs.writeFileSync(path.join(outputDir, 'DOCS.md'), markdownContent);
+
+        // Generate HTML with embedded JSONs
+        const htmlGenerator = new HtmlGenerator();
+        const htmlContent = htmlGenerator.generate(routes, appName, baseUrl, {
+            postmanContent,
+            envContent,
+            openApiContent
+        });
+        fs.writeFileSync(path.join(outputDir, 'api_docs.html'), htmlContent);
     }
 }
